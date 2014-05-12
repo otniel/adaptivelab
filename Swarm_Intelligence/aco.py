@@ -1,8 +1,23 @@
 # -*- coding: utf-8 -*-
+
+__author__          = "Pablo Otniel Aguilar-Izaguirre" 
+__date__            = "May 11, 2014" 
+__registration__    = "1475648" 
+__institution__     = "UANL - FIME"
+__email__           = "otnieel.aguilar@gmail.com" 
+__license__         = "GNU General Public License"
+__version__         = "3 (GPL-3.0)" 
+__copyright__       = "Copyright (C) 2014"
+
 import sys
 import random
 import copy
 from math import e
+
+""" 
+    Optimización por colonia de hormigas, resolviendo instancias 
+    del problema del agente viajero.
+"""
 
 class AntColonyOptimization:
 	
@@ -48,20 +63,13 @@ class AntColonyOptimization:
             matrix.append([int(item) for item in line[0].split(',')])
         return matrix
 
-    def total_cost_tour(self, tour):
-        arists = self.arists_from_tour(tour)
-        return sum([self.heuristic_matrix[i][j] for i,j in arists])
-
     def heuristic_info(self, n):
         """ Método para regresar un valor del peso coherente: mayor peso, mejor solución"""
         # Si n es 0, entonces la información heurística del arco Nij es de un mismo nodo
         if n == 0:
             return 0
         return 1.0 / n
-
-    def arists_from_tour(self, arist_list):
-        return [tuple(arist_list[n-2:n]) for n in range(2, len(arist_list)+1)]
-
+    
     def heuristic_info_from_list(self, list_info):
         return [self.heuristic_info(n) for n in list_info]
 
@@ -85,12 +93,12 @@ class AntColonyOptimization:
                           for posible_node in range(0, self.total_nodes))
         return float(numerator) / float(denominator)
 
-    def list_selection_probability(self, adyacent_nodes, ant):
-        list_prob = dict()
+    def list_selection_probability(self, adyacent_nodes, node):
+        probability_list = dict()
         for adyacent in adyacent_nodes:
-            if ant != adyacent:
-                list_prob[ant, adyacent] = self.arist_selecc_probability(ant, adyacent)
-        return list_prob
+            if node != adyacent:
+                probability_list[node, adyacent] = self.arist_selecc_probability(node, adyacent)
+        return probability_list
         
     def update_pheromon(self, tour):
         arists = self.arists_from_tour(tour)
@@ -104,46 +112,69 @@ class AntColonyOptimization:
 
     def update_arist_log(self, arists):
         for i,j in arists:
-            self.used_arist_log[i][j] += 1 
+            for k in range(self.total_arists):
+                if self.used_arist_log[i][k] != 0 and k != j:
+                    self.used_arist_log[i][k] -= 1
+            self.used_arist_log[i][j] += 1             
+    
+    def total_cost_tour(self, tour):
+        arists = self.arists_from_tour(tour)
+        return sum([self.heuristic_matrix[i][j] for i,j in arists])
 
+    def arists_from_tour(self, arist_list):
+        return [tuple(arist_list[n-2:n]) for n in range(2, len(arist_list)+1)]
+    
     def best_tour(self, tours):
+        # Diccionario en la forma Costo:Tour (Tour es una lista)
         tour_cost = {self.total_cost_tour(tour):tour for tour in tours}
+        # El valor mínimo del costo en todos los tours
         best = min(tour_cost.keys())
+        # Regresa una tupla con el mejor tour y su costo
         return tour_cost[best], best
 
-    def build_tour(self):        
+    def build_tour(self):
+        """ Método para construir los recorridos de cada hormiga """
         tour = []
+        # V es el conjunto con todos los nodos de la ciudad.
         V = [node for node in range(self.total_nodes)]
-        first = 0
+        first = 0 # Variable para el primer nodo, y al final poder cerrar el tour con ella.
         current = 0
-        _sum = 0
+        _sum = 0 # _sum sirve para acumular las probabilidades de selección de cada nodo en el recorrido
         for node in range(self.total_arists):
             # Si el tour está vacío, se selecciona cualquier nodo para empezar. 
             if not tour:
                 current = random.choice(V)
                 first = current
-                tour.append(first)    
+                tour.append(first)
+            # Los nodos adyacentes del nodo actual.
             adyacent_nodes = self.adyacent_nodes(current, V)
+            # Se elimina el nodo actual, para que no salga como adyacente de los nodos siguientes.
             V.remove(current)
-            list_prob = self.list_selection_probability(adyacent_nodes, current)
+            #La lista de probabilidades de seleccionar cualquier nodo adyacente
+            probability_list = self.list_selection_probability(adyacent_nodes, current)
             random_probability = random.random()
-            for nodes, probability in list_prob.items():
+            for nodes, probability in probability_list.items():
+                # Se acumula la probabilidad de selección.
                 _sum += probability
+                # Si la probabilidad acumulada es mayor o igual a un número aleatorio
+                # O bien, la probabilidad normalizada es menor a un margen de error 1e-6
+                # El nodo es seleccionado
                 if _sum >= random_probability or (random_probability - _sum) / random_probability < 1e-6:
                     current = nodes[1]
                     tour.append(current)
                     break
         tour.append(first)
         return tour
-
+        
     def main(self):
+        # Todos los recorridos por k hormigas
         total_tours = []
         for ant in range(self.ants):
             tour = self.build_tour()
             total_tours.append(tour)
             self.update_pheromon(tour)
         for ant, tour in enumerate(total_tours):
-            print 'Ant ', ant, ' -> ', tour, 'costo -> ', self.total_cost_tour(tour)
+            print 'Ant ', ant+1, ' -> ', tour, 'costo -> ', self.total_cost_tour(tour)
         best = self.best_tour(total_tours)
         print 'best tour founded: ', best[0], 'cost: ', best[1]
 

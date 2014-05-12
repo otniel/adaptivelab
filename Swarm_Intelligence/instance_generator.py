@@ -22,11 +22,12 @@ def instance_generator(size, max_distance):
         print row
 
     # Se escribe en un archivo
-    instance = open('matriz_generada.txt', 'w')
+    file_name = 'tsp_'+str(size)+'_1.dat'
+    instance = open(file_name, 'w')
     for row in matrix:
         instance.write(','.join(str(item) for item in row))
         instance.write('\n')
-    print 'Instancia generada en el archivo "matriz_generada.txt"'
+    print 'Instancia generada en el archivo "'+file_name+'"'
             
     
 if len(sys.argv) != 3:
